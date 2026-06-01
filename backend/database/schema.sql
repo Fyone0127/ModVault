@@ -1,0 +1,206 @@
+CREATE DATABASE IF NOT EXISTS modvault_db;
+USE modvault_db;
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+DROP TABLE IF EXISTS creator_applications;
+DROP TABLE IF EXISTS downloads;
+DROP TABLE IF EXISTS favourites;
+DROP TABLE IF EXISTS reviews;
+DROP TABLE IF EXISTS password_resets;
+DROP TABLE IF EXISTS mods;
+DROP TABLE IF EXISTS games;
+DROP TABLE IF EXISTS users;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(80) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  role ENUM('user', 'creator', 'admin') DEFAULT 'user',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE password_resets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  token_hash CHAR(64) NOT NULL UNIQUE,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE games (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL UNIQUE,
+  description TEXT NOT NULL,
+  cover_url VARCHAR(500) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE mods (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  creator_id INT NOT NULL,
+  game_id INT NOT NULL,
+  title VARCHAR(180) NOT NULL,
+  category VARCHAR(100) NOT NULL,
+  tags VARCHAR(500) NULL,
+  description TEXT NOT NULL,
+  image_url VARCHAR(500) NULL,
+  file_url VARCHAR(500) NULL,
+  download_url VARCHAR(500) NULL,
+  status VARCHAR(20) DEFAULT 'pending',
+  reviewed_by INT NULL,
+  reviewed_at TIMESTAMP NULL,
+  rejection_reason VARCHAR(500) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_mod_creator FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_mod_game FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
+  CONSTRAINT fk_mod_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE reviews (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  mod_id INT NOT NULL,
+  rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_review_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_review_mod FOREIGN KEY (mod_id) REFERENCES mods(id) ON DELETE CASCADE
+);
+
+CREATE TABLE favourites (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  mod_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_favourite_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_favourite_mod FOREIGN KEY (mod_id) REFERENCES mods(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_favourite (user_id, mod_id)
+);
+
+CREATE TABLE downloads (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NULL,
+  mod_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_download_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_download_mod FOREIGN KEY (mod_id) REFERENCES mods(id) ON DELETE CASCADE
+);
+
+CREATE TABLE creator_applications (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  reason TEXT NOT NULL,
+  portfolio_url VARCHAR(500) NULL,
+  status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  reviewed_by INT NULL,
+  reviewed_at TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_creator_application_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_creator_application_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+INSERT INTO users (id, username, email, password, role) VALUES
+(4, 'DemoCreator', 'demo@modvault.dev', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8Bi1Ue4.G5FRuVT75Sg7aznL2Ue0Ui', 'admin');
+
+ALTER TABLE users AUTO_INCREMENT = 5;
+
+INSERT INTO games (id, name, description, cover_url) VALUES
+(1, 'Minecraft', 'Sandbox survival game with blocks, crafting, exploration, servers, maps, texture packs, addons, and modding possibilities.', '/images/games/minecraft.jpg'),
+(2, 'Skyrim', 'Open-world fantasy RPG with quests, graphics, weapons, companions, UI, performance, character, and gameplay mods.', '/images/games/skyrim.jpg'),
+(3, 'Stardew Valley', 'Relaxing farming and life simulation game with mods for crops, UI, tools, fashion, configuration, and gameplay improvements.', '/images/games/stardew-valley.png'),
+(4, 'The Sims 4', 'Life simulation game with furniture, clothing, lots, careers, gameplay, and household add-ons.', '/images/games/thesims4.png'),
+(5, 'Terraria', 'Adventure sandbox game with crafting, exploration, building, boss fights, items, tools, utilities, music packs, and gameplay mods.', '/images/games/terraria.jpg'),
+(6, 'Fallout 4', 'Post-apocalyptic RPG with settlements, survival mechanics, weapons, armour, interface, animation, and visual overhaul mods.', '/images/games/fallout4.jpg'),
+(7, 'Hytale', 'Sandbox adventure RPG with exploration, building, combat, multiplayer, maps, weapons, utilities, and gameplay mods.', '/images/games/hytale.jpg'),
+(8, 'inZOI', 'Life simulation game with realistic characters, home design, vehicles, relationships, weather, food, and gameplay customisation mods.', '/images/games/inzoi.jpg'),
+(9, 'Hogwarts Legacy', 'An open-world wizarding RPG where players explore Hogwarts, learn spells, battle enemies, and use mods to expand the adventure.', '/images/games/hogwartslegacy.png'),
+(10, 'Baldur''s Gate 3', 'Fantasy role-playing game with story, combat, interface, character customisation, maps, UI, and visual enhancement mods.', '/images/games/baldurgate3.jpg'),
+(11, 'World of Warcraft', 'Massively multiplayer online RPG with addons for combat, quests, auction house, guilds, raids, dungeons, and interface improvements.', '/images/games/worldofwarcraft.jpg'),
+(12, 'RimWorld', 'Top-down colony simulation game driven by an AI storyteller, with mods for technology, characters, cosmetics, colonies, and gameplay expansion.', '/images/games/rimworld.jpg');
+
+INSERT INTO mods 
+(creator_id, game_id, title, category, tags, description, image_url, file_url, download_url, status)
+VALUES
+(4, 11, 'Details! Damage Meter', 'Addons', 'wow,damage meter,combat,raid,dungeon,pvp', 'Complete combat analysis addon for World of Warcraft. It helps players track damage, healing, combat performance, and other important battle statistics.', '/images/games/worldofwarcraft.jpg', NULL, 'https://www.curseforge.com/wow/addons/details', 'approved'),
+(4, 11, 'DBM - Deadly Boss Mods', 'Addons', 'wow,boss encounters,combat,raid,dungeon,pve', 'A boss encounter helper addon that provides alerts, timers, and warnings during raids and dungeons to help players react to mechanics more effectively.', '/images/games/worldofwarcraft.jpg', NULL, 'https://www.curseforge.com/wow/addons/deadly-boss-mods', 'approved'),
+(4, 11, 'Auctionator', 'Addons', 'wow,auction house,economy,tooltip,trade', 'Improves the auction house experience by making it easier to search, buy, sell, and track the value of items in World of Warcraft.', '/images/games/worldofwarcraft.jpg', NULL, 'https://www.curseforge.com/wow/addons/auctionator', 'approved'),
+(4, 11, 'Questie', 'Addons', 'wow,quests,leveling,map,minimap,tooltip', 'A classic quest helper addon that improves quest tracking by showing quest objectives, locations, and useful map information.', '/images/games/worldofwarcraft.jpg', NULL, 'https://www.curseforge.com/wow/addons/questie', 'approved'),
+(4, 11, 'DBM - Dungeons, Delves, Visions', 'Addons', 'wow,dungeons,delves,visions,boss encounters,combat', 'Adds Deadly Boss Mods support for five-player dungeons, delves, visions, and related combat encounters from Vanilla to current retail content.', '/images/games/worldofwarcraft.jpg', NULL, 'https://www.curseforge.com/wow/addons/deadly-boss-mods-dbm-dungeons', 'approved'),
+
+(4, 4, 'MC Command Center', 'Gameplay', 'sims4,gameplay,utilities,overrides,bug fixes', 'Allows many different gameplay elements to be changed in The Sims 4, including household settings, story progression, and useful player controls.', '/images/games/thesims4.png', NULL, 'https://www.curseforge.com/sims4/mods/mc-command-center', 'approved'),
+(4, 4, 'Lot 51 Core Library', 'Utilities', 'sims4,library,utilities,script,core', 'A core dependency library for Lot 51 and community mods, supporting scripting capabilities and custom mod features.', '/images/games/thesims4.png', NULL, 'https://www.curseforge.com/sims4/mods/lot-51-core-library', 'approved'),
+(4, 4, 'Smart Core Script', 'Utilities', 'sims4,script,utilities,core,library', 'A powerful script library designed to support multiple Sims 4 mods and improve mod compatibility.', '/images/games/thesims4.png', NULL, 'https://www.curseforge.com/sims4/mods/smart-core-script', 'approved'),
+(4, 4, 'XML Injector', 'Utilities', 'sims4,xml,injector,script,interactions', 'Allows Sims 4 mods to add interactions without creating custom scripts, making mod integration easier.', '/images/games/thesims4.png', NULL, 'https://www.curseforge.com/sims4/mods/xml-injector', 'approved'),
+(4, 4, 'Cookbook S&S 1.04', 'Functional Objects', 'sims4,cookbook,recipes,gameplay,functional objects', 'Adds cookbook support for custom recipes, food gameplay, and functional cooking-related objects in The Sims 4.', '/images/games/thesims4.png', NULL, 'https://www.curseforge.com/sims4/mods/cookbook-s-s', 'approved'),
+
+(4, 8, 'Realistic Food', 'Gameplay', 'inzoi,food,calories,realism,gameplay', 'Reworks food servings and calorie values to make food gameplay feel more realistic in inZOI.', '/images/games/inzoi.jpg', NULL, 'https://www.curseforge.com/inzoi/mods/realistic-food-eb4775d8', 'approved'),
+(4, 8, 'MH Free Meow Store', 'Gameplay', 'inzoi,cat shop,store,items,gameplay', 'Allows players to purchase any item from the Cat Shop for 0 donuts in inZOI.', '/images/games/inzoi.jpg', NULL, 'https://www.curseforge.com/inzoi/mods/mh-freecatshop-59e1d109', 'approved'),
+(4, 8, 'Easier Set Mood and Babies', 'Gameplay', 'inzoi,mood,babies,relationship,romance,gameplay', 'Lowers the relationship threshold for romantic interactions and adds more autonomy to relationship gameplay.', '/images/games/inzoi.jpg', NULL, 'https://www.curseforge.com/inzoi/mods/easiermoodbabies-7770f9d4', 'approved'),
+(4, 8, 'More Vehicle Colors - Pastel', 'Utilities', 'inzoi,vehicle,colors,pastel,customisation', 'Adds six pastel colour options for every driveable vehicle in inZOI.', '/images/games/inzoi.jpg', NULL, 'https://www.curseforge.com/inzoi/mods/more-vehicle-colors-pastel-50584a03', 'approved'),
+(4, 8, 'Weather Realism Overhaul', 'Gameplay', 'inzoi,weather,realism,environment,immersion', 'Improves weather realism and immersion in inZOI by enhancing weather systems and unused weather-related features.', '/images/games/inzoi.jpg', NULL, 'https://www.curseforge.com/inzoi/mods/weatherrealismoverhaul', 'approved'),
+
+(4, 7, 'BetterMap', 'Utility', 'hytale,map,cave map,persistent map,quality of life', 'Enhances the Hytale world map by adding persistent map features, cave map support, and better exploration tools.', '/images/games/hytale.jpg', NULL, 'https://www.curseforge.com/hytale/mods/bettermap', 'approved'),
+(4, 7, 'EyeSpy', 'Utility', 'hytale,hud,information,quality of life,interface', 'Adds a HUD feature that displays useful information about what the player is currently looking at.', '/images/games/hytale.jpg', NULL, 'https://www.curseforge.com/hytale/mods/eyespy', 'approved'),
+(4, 7, 'Wan''s Wonder Weapons', 'Gameplay', 'hytale,weapons,magic,combat,adventure', 'Adds a collection of unique weapons for Hytale, including magical, dark, and reality-bending combat equipment.', '/images/games/hytale.jpg', NULL, 'https://www.curseforge.com/hytale/mods/wans-wonder-weapons', 'approved'),
+(4, 7, 'RPG Leveling And Stats/Skills', 'Gameplay', 'hytale,rpg,leveling,skills,stats,progression', 'Adds RPG progression systems to Hytale with XP, levels, zones, scaling difficulty, stats, and skill-based gameplay.', '/images/games/hytale.jpg', NULL, 'https://www.curseforge.com/hytale/mods/rpg-leveling-and-stats', 'approved'),
+(4, 7, 'Perfect Parries', 'Gameplay', 'hytale,combat,parry,souls-like,precision', 'Adds a souls-like precision parry combat mechanic where players can block at the right moment to counter attacks.', '/images/games/hytale.jpg', NULL, 'https://www.curseforge.com/hytale/mods/perfect-parries', 'approved'),
+
+(4, 3, 'Content Patcher', 'Modding Tools', 'stardew valley,content patcher,modding tools,data,maps,images', 'Loads content packs that change the game data, maps, and images without replacing original game files.', '/images/games/stardew-valley.png', NULL, 'https://www.curseforge.com/stardewvalley/mods/content-patcher', 'approved'),
+(4, 3, 'Lookup Anything', 'UI', 'stardew valley,lookup,ui,walkthrough,information', 'Shows live information about objects, crops, villagers, and items when the player uses the lookup shortcut.', '/images/games/stardew-valley.png', NULL, 'https://www.curseforge.com/stardewvalley/mods/lookup-anything', 'approved'),
+(4, 3, 'Tractor Mod', 'Gameplay Basics', 'stardew valley,tractor,crops,tools,farming', 'Adds a tractor to improve farming efficiency when working with crops, clearing twigs, rocks, and other farm tasks.', '/images/games/stardew-valley.png', NULL, 'https://www.curseforge.com/stardewvalley/mods/tractor-mod', 'approved'),
+(4, 3, 'Fashion Sense', 'Modding Tools', 'stardew valley,fashion,clothes,hair,accessories,appearance', 'Provides a framework for larger accessories, hairstyles, hats, shirts, sleeves, pants, shoes, and animation support.', '/images/games/stardew-valley.png', NULL, 'https://www.curseforge.com/stardewvalley/mods/fashion-sense', 'approved'),
+(4, 3, 'Generic Mod Config Menu', 'Modding Tools', 'stardew valley,config,menu,settings,modding tools', 'Adds an in-game user interface for other mods to provide configuration options and settings menus.', '/images/games/stardew-valley.png', NULL, 'https://www.curseforge.com/stardewvalley/mods/generic-mod-config-menu', 'approved'),
+
+(4, 9, 'Character Editor', 'UI', 'hogwarts legacy,character editor,character,gameplay,customisation', 'A classic character editing mod that allows players to edit character presets and wand appearance more easily.', '/images/games/hogwartslegacy.png', NULL, 'https://www.curseforge.com/hogwarts-legacy/mods/character-editor', 'approved'),
+(4, 9, 'Increased Gear Capacity', 'Gameplay', 'hogwarts legacy,gear,inventory,capacity,gameplay', 'Increases the player gear capacity so players can carry more items during exploration and progression.', '/images/games/hogwartslegacy.png', NULL, 'https://www.curseforge.com/hogwarts-legacy/mods/mhgearcapacity', 'approved'),
+(4, 9, 'Alohomora Auto Solve', 'Gameplay', 'hogwarts legacy,alohomora,spell,puzzle,utility', 'Automatically solves Alohomora lock puzzles to make exploration and progression smoother.', '/images/games/hogwartslegacy.png', NULL, 'https://www.curseforge.com/hogwarts-legacy/mods/alohomora-autosolve-mod', 'approved'),
+(4, 9, 'Spells & Talents', 'Gameplay', 'hogwarts legacy,spells,talents,magic,character', 'Adds new spells and talent improvements to expand magical combat and character progression.', '/images/games/hogwartslegacy.png', NULL, 'https://www.curseforge.com/hogwarts-legacy/mods/spellsandtalents', 'approved'),
+(4, 9, 'Spells Enhanced - New Spells', 'Gameplay', 'hogwarts legacy,spells,enhanced,magic,visual,ui', 'Adds new spells, enemy spells, teleportation-style utility spells, and other spell enhancements.', '/images/games/hogwartslegacy.png', NULL, 'https://www.curseforge.com/hogwarts-legacy/mods/spells-enhanced-new-spells', 'approved'),
+
+(4, 10, 'Tav''s HairMixer', 'Gameplay', 'baldurs gate 3,hair,character,customisation,appearance', 'Makes all hairs from Tav''s Hair Salon mixable by adding them into the horns menu and facial hair options.', '/images/games/baldurgate3.jpg', NULL, 'https://www.curseforge.com/baldurs-gate-3/mods/tavs-hairmixer', 'approved'),
+(4, 10, 'Better Hotbar 2', 'UI', 'baldurs gate 3,hotbar,ui,interface,quality of life', 'Increases the number of slots on the hotbar grid and adds another slot category to the main deck.', '/images/games/baldurgate3.jpg', NULL, 'https://www.curseforge.com/baldurs-gate-3/mods/better-hotbar-2', 'approved'),
+(4, 10, 'Better Maps All-In-One', 'UI', 'baldurs gate 3,maps,minimap,ui,npc markers', 'Adds a collection of map improvements, including minimap widget scaling, better markers, and improved map readability.', '/images/games/baldurgate3.jpg', NULL, 'https://www.curseforge.com/baldurs-gate-3/mods/better-maps-all-in-one', 'approved'),
+(4, 10, 'Dynamic Sidebar', 'UI', 'baldurs gate 3,sidebar,party portraits,ui,interface', 'Dynamically scales party portraits on the sidebar so they fit the screen without scrolling.', '/images/games/baldurgate3.jpg', NULL, 'https://www.curseforge.com/baldurs-gate-3/mods/dynamic-sidebar', 'approved'),
+(4, 10, 'Mod Manager Fixes & Tweaks', 'UI', 'baldurs gate 3,mod manager,ui,tweaks,mod list', 'Fixes small bugs and inconsistencies in the mod manager menu and improves mod preview and mod list behaviour.', '/images/games/baldurgate3.jpg', NULL, 'https://www.curseforge.com/baldurs-gate-3/mods/mod-manager-fixes-tweaks', 'approved'),
+
+(4, 6, 'Tactical Restrain - Holstered Weapon', 'Animation', 'fallout 4,animation,armor,weapon,holstered', 'Allows players to holster weapons when they are not engaged in combat, improving roleplay and immersion.', '/images/games/fallout4.jpg', NULL, 'https://www.curseforge.com/f4/mods/tactical-restrain-holstered-weapon', 'approved'),
+(4, 6, 'Modern Minimal HUD - FallUI Preset', 'Animation', 'fallout 4,hud,fallui,preset,interface', 'Provides a modern minimal HUD preset focused on immersion while keeping important gameplay information useful.', '/images/games/fallout4.jpg', NULL, 'https://www.curseforge.com/f4/mods/modern-minimal-hud-fallui-preset', 'approved'),
+(4, 6, 'H.U.E - Handmade Unique Eyes FO4', 'Armor', 'fallout 4,eyes,character,appearance,customisation', 'Replaces eye textures with unique handmade alternatives for improved character appearance customisation.', '/images/games/fallout4.jpg', NULL, 'https://www.curseforge.com/f4/mods/h-u-e-handmade-unique-eyes-fo4', 'approved'),
+(4, 6, 'Beast351x''s Bundles Mod', 'Ammunition', 'fallout 4,bundles,items,scripted,ammunition', 'Adds scripted bundles into the game to improve item handling and gameplay convenience.', '/images/games/fallout4.jpg', NULL, 'https://www.curseforge.com/f4/mods/beast351xs-bundles-mod', 'approved'),
+(4, 6, 'Essential Drinking Buddy', 'Companion', 'fallout 4,drinking buddy,companion,utility,settlement', 'Improves the Drinking Buddy experience by making it more useful and reliable for gameplay and settlement use.', '/images/games/fallout4.jpg', NULL, 'https://www.curseforge.com/f4/mods/essential-drinking-buddy', 'approved'),
+
+(4, 2, 'Lockpick Pro', 'User Interface', 'skyrim,lockpick,ui,interface,utility', 'A lockpicking interface improvement mod designed to make lockpicking clearer and easier to use.', '/images/games/skyrim.jpg', NULL, 'https://www.curseforge.com/skyrim/mods/lockpick-pro', 'approved'),
+(4, 2, 'Detailed Bodies', 'Characters', 'skyrim,bodies,characters,npcs,textures', 'Increases skin detail for human and elven character bodies to improve visual quality.', '/images/games/skyrim.jpg', NULL, 'https://www.curseforge.com/skyrim/mods/dbs', 'approved'),
+(4, 2, 'Skyrim Better Performance', 'UI', 'skyrim,performance,optimization,ati,fps', 'Improves game performance for selected users and systems by applying lightweight performance adjustments.', '/images/games/skyrim.jpg', NULL, 'https://www.curseforge.com/skyrim/mods/skyrim-better-performance', 'approved'),
+(4, 2, 'Weightless Items', 'Items', 'skyrim,items,alchemy ingredients,potions,weightless', 'Sets the weight of selected items to zero, making inventory management easier.', '/images/games/skyrim.jpg', NULL, 'https://www.curseforge.com/skyrim/mods/weightless-items', 'approved'),
+(4, 2, 'Detailed Faces', 'Characters', 'skyrim,faces,hair,characters,npcs,textures', 'Increases skin and facial detail for human and elven faces to improve character appearance.', '/images/games/skyrim.jpg', NULL, 'https://www.curseforge.com/skyrim/mods/df2', 'approved'),
+
+(4, 5, 'OP Mod', 'Items', 'terraria,items,weapons,tools,utilities', 'Adds overpowered weapons and tools for players who want a stronger and faster Terraria gameplay experience.', '/images/games/terraria.jpg', NULL, 'https://www.curseforge.com/terraria/mods/op-weapons-and-tools', 'approved'),
+(4, 5, 'Ark of Light', 'Items', 'terraria,items,buffs,npcs,mechanics,tools', 'Adds items, buffs, NPCs, and mechanics to expand the Terraria adventure experience.', '/images/games/terraria.jpg', NULL, 'https://www.curseforge.com/terraria/mods/ark-of-light', 'approved'),
+(4, 5, 'JoJo''s Bizarre Adventure Music Modpack', 'Items', 'terraria,music,modpack,jojo,utilities', 'Adds a JoJo-inspired music modpack for Terraria to customise the game soundtrack experience.', '/images/games/terraria.jpg', NULL, 'https://www.curseforge.com/terraria/mods/jojos-bizarre-adventure-terraria-1-4-music-modpack', 'approved'),
+(4, 5, 'OP Player Save File', 'Items', 'terraria,save file,player,optimizations,journey', 'Provides an overpowered Journey player save file for players who want a prepared Terraria character setup.', '/images/games/terraria.jpg', NULL, 'https://www.curseforge.com/terraria/mods/op-player-save-file', 'approved'),
+(4, 5, 'Calamity Melee Endgame', 'Items', 'terraria,calamity,melee,endgame,character', 'Adds a Calamity endgame melee character setup for players focused on late-game combat progression.', '/images/games/terraria.jpg', NULL, 'https://www.curseforge.com/terraria/mods/calamity-melee-endgame', 'approved'),
+
+(4, 12, 'My Little RimPony', 'Miscellaneous', 'rimworld,pony,characters,cosmetic,miscellaneous', 'Adds pony plushies and other MLP themed items to RimWorld for cosmetic colony decoration.', '/images/games/rimworld.jpg', NULL, 'https://www.curseforge.com/rimworld/mods/my-little-rimpony', 'approved'),
+(4, 12, 'Sheeld Tech', 'Miscellaneous', 'rimworld,technology,shield,defense,utility', 'Adds more technology options to RimWorld, including shield-related systems and colony defense improvements.', '/images/games/rimworld.jpg', NULL, 'https://www.curseforge.com/rimworld/mods/sheeld-tech', 'approved'),
+(4, 12, 'D12 Wired Hairs HD', 'Miscellaneous', 'rimworld,hair,character,cosmetic,hd', 'Adds new high-definition wired hairstyle options to RimWorld for improved character appearance customisation.', '/images/games/rimworld.jpg', NULL, 'https://www.curseforge.com/rimworld/mods/d12-wired-hairs-hd', 'approved'),
+
+(4, 1, 'Better on Bedrock v1.2.1', 'Addons', 'minecraft bedrock,addons,survival,vanilla,expansion', 'A comprehensive expansion addon designed to enhance and extend the Minecraft Bedrock Edition survival experience.', '/images/games/minecraft.jpg', NULL, 'https://www.curseforge.com/minecraft-bedrock/addons/better-on-bedrock', 'approved'),
+(4, 1, 'Raiyon''s Java Combat', 'Addons', 'minecraft bedrock,addons,combat,java combat,utility', 'Adjusts Minecraft Bedrock combat to feel closer to Java Edition by adding a combat system that is faithful to Java mechanics.', '/images/games/minecraft.jpg', NULL, 'https://www.curseforge.com/minecraft-bedrock/addons/raiyons-java-combat-addon', 'approved'),
+(4, 1, 'SERP Pokédrock', 'Addons', 'minecraft bedrock,pokemon,addon,mobs,players,texture packs', 'Adds Pokémon-inspired gameplay to Minecraft Bedrock, including battle systems, mounts, mechanics, and themed exploration features.', '/images/games/minecraft.jpg', NULL, 'https://www.curseforge.com/minecraft-bedrock/addons/serp-pokemon-addon', 'approved'),
+(4, 1, 'System Dynamic Light', 'Addons', 'minecraft bedrock,dynamic light,torches,caves,data packs', 'Allows players to illuminate caves and dark areas using held light sources such as torches, glowstone, magma, and other items.', '/images/games/minecraft.jpg', NULL, 'https://www.curseforge.com/minecraft-bedrock/addons/system-dynamic-lights', 'approved'),
+(4, 1, 'Raiyon''s Dynamic Lightning', 'Addons', 'minecraft bedrock,dynamic lighting,torches,realistic,utility', 'Adds dynamic lighting support for Minecraft Bedrock so players can light caves using torches and other held light sources.', '/images/games/minecraft.jpg', NULL, 'https://www.curseforge.com/minecraft-bedrock/addons/raiyons-dynamic-light-addon', 'approved');

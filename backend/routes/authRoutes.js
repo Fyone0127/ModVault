@@ -1,0 +1,133 @@
+import express from 'express'
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+import crypto from 'crypto'
+import { pool } from '../config/db.js'
+
+const router = express.Router()
+
+function signToken(user) {
+  return jwt.sign({ id: user.id, username: user.username, email: user.email, role: user.role }, process.env.JWT_SECRET || 'dev_secret', { expiresIn: '7d' })
+}
+
+async function ensurePasswordResetTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      token_hash CHAR(64) NOT NULL UNIQUE,
+      expires_at DATETIME NOT NULL,
+      used_at DATETIME NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `)
+}
+
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex')
+}
+
+router.post('/register', async (req, res, next) => {
+  try {
+    const { username, email, password } = req.body
+    if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required' })
+    if (password.length < 6) return res.status(400).json({ message: 'Password must be at least 6 characters' })
+
+    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email])
+    if (existing.length) return res.status(409).json({ message: 'Email already registered' })
+
+    const hashed = await bcrypt.hash(password, 10)
+    const [result] = await pool.query(
+      'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
+      [username, email, hashed, 'user']
+    )
+    const user = { id: result.insertId, username, email, role: 'user' }
+    res.status(201).json({ token: signToken(user), user })
+  } catch (error) { next(error) }
+})
+
+router.post('/login', async (req, res, next) => {
+  try {
+    const { email, password } = req.body
+    const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email])
+    const user = rows[0]
+    if (!user) return res.status(401).json({ message: 'Invalid email or password' })
+
+    const ok = await bcrypt.compare(password, user.password)
+    if (!ok) return res.status(401).json({ message: 'Invalid email or password' })
+
+    const safeUser = { id: user.id, username: user.username, email: user.email, role: user.role }
+    res.json({ token: signToken(safeUser), user: safeUser })
+  } catch (error) { next(error) }
+})
+
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    await ensurePasswordResetTable()
+
+    const { email } = req.body
+    if (!email) return res.status(400).json({ message: 'Email is required' })
+
+    const [rows] = await pool.query('SELECT id, email FROM users WHERE email = ?', [email])
+    const user = rows[0]
+
+    if (!user) {
+      return res.json({
+        message: 'If that email exists, a reset link has been prepared.'
+      })
+    }
+
+    const rawToken = crypto.randomBytes(24).toString('hex')
+    const tokenHash = hashResetToken(rawToken)
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 30)
+    const frontendBase = process.env.FRONTEND_URL || 'http://localhost:5174'
+
+    await pool.query('DELETE FROM password_resets WHERE user_id = ?', [user.id])
+    await pool.query(
+      'INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
+      [user.id, tokenHash, expiresAt]
+    )
+
+    res.json({
+      message: 'If that email exists, a reset link has been prepared.',
+      resetUrl: `${frontendBase}/reset-password?token=${rawToken}`
+    })
+  } catch (error) { next(error) }
+})
+
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    await ensurePasswordResetTable()
+
+    const { token, password } = req.body
+    if (!token || !password) return res.status(400).json({ message: 'Token and password are required' })
+    if (password.length < 6) return res.status(400).json({ message: 'Password must be at least 6 characters' })
+
+    const tokenHash = hashResetToken(token)
+    const [rows] = await pool.query(
+      `SELECT pr.id, pr.user_id
+       FROM password_resets pr
+       WHERE pr.token_hash = ?
+         AND pr.used_at IS NULL
+         AND pr.expires_at > NOW()
+       LIMIT 1`,
+      [tokenHash]
+    )
+
+    const resetRow = rows[0]
+    if (!resetRow) {
+      return res.status(400).json({ message: 'Reset link is invalid or has expired' })
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, resetRow.user_id])
+    await pool.query('UPDATE password_resets SET used_at = NOW() WHERE id = ?', [resetRow.id])
+    await pool.query('DELETE FROM password_resets WHERE user_id = ? AND id <> ?', [resetRow.user_id, resetRow.id])
+
+    res.json({ message: 'Password updated successfully. You can now log in.' })
+  } catch (error) { next(error) }
+})
+
+export default router
