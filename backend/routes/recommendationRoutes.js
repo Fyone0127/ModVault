@@ -209,7 +209,7 @@ async function getApprovedMods() {
     LEFT JOIN downloads d ON d.mod_id = m.id
     LEFT JOIN favourites f ON f.mod_id = m.id
     WHERE m.status = 'approved'
-    GROUP BY m.id
+    GROUP BY m.id, g.id, u.id
     `
   )
 

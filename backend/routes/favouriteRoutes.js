@@ -22,7 +22,10 @@ router.get('/', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const { mod_id } = req.body
-    await pool.query('INSERT IGNORE INTO favourites (user_id, mod_id) VALUES (?, ?)', [req.user.id, mod_id])
+    await pool.query(
+      'INSERT INTO favourites (user_id, mod_id) VALUES (?, ?) ON CONFLICT (user_id, mod_id) DO NOTHING',
+      [req.user.id, mod_id]
+    )
     res.status(201).json({ message: 'Saved to favourites' })
   } catch (error) { next(error) }
 })

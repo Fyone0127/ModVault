@@ -140,7 +140,7 @@ router.get('/', async (req, res, next) => {
       LEFT JOIN reviews r ON r.mod_id = m.id
       LEFT JOIN downloads d ON d.mod_id = m.id
       ${where}
-      GROUP BY m.id
+      GROUP BY m.id, g.id, u.id
       ORDER BY ${orderBy(sort)}
       ${limitClause}
       `,
@@ -195,7 +195,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
       LEFT JOIN reviews r ON r.mod_id = m.id
       LEFT JOIN downloads d ON d.mod_id = m.id
       WHERE m.creator_id = ?
-      GROUP BY m.id
+      GROUP BY m.id, g.id, u.id
       ORDER BY m.created_at DESC
       `,
       [req.user.id]
@@ -228,7 +228,7 @@ router.get('/:id', async (req, res, next) => {
       LEFT JOIN reviews r ON r.mod_id = m.id
       LEFT JOIN downloads d ON d.mod_id = m.id
       WHERE m.id = ? AND m.status = 'approved'
-      GROUP BY m.id
+      GROUP BY m.id, g.id, u.id
       `,
       [req.params.id]
     )

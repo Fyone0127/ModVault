@@ -7,7 +7,7 @@ The current build includes a slower cinematic splash screen, a full-screen cente
 ## Highlights
 
 - Vue 3 frontend powered by Vite and Vue Router.
-- Express and MySQL backend with REST API routes.
+- Express and Supabase PostgreSQL backend with REST API routes.
 - Role-based access for guests, users, creators, and admins.
 - Browse games, filter mods, open mod detail pages, save favourites, and write reviews.
 - Creator application flow, mod upload form, My Mods management, and admin approval queues.
@@ -22,10 +22,10 @@ The current build includes a slower cinematic splash screen, a full-screen cente
 | Layer | Tools |
 | --- | --- |
 | Frontend | Vue 3, Vite, Vue Router, Axios, Lucide Vue |
-| Backend | Node.js, Express, MySQL, mysql2 |
+| Backend | Node.js, Express, PostgreSQL, pg |
 | Auth and uploads | JWT, bcryptjs, Multer |
 | Styling | CSS Grid, Flexbox, custom responsive CSS |
-| Data | MySQL schema with seeded users, games, mods, reviews, favourites, downloads |
+| Data | Supabase/PostgreSQL schema with seeded users, games, mods, reviews, favourites, downloads |
 
 ## Main Routes
 
@@ -106,13 +106,13 @@ ModVault_Fresh/
 
 ## Database Setup
 
-Run the SQL script in MySQL Workbench, phpMyAdmin, or the MySQL CLI:
+Run the SQL script in the Supabase SQL Editor:
 
 ```text
 backend/database/schema.sql
 ```
 
-It creates the `modvault_db` database and seeds:
+It creates the ModVault tables and seeds:
 
 - demo admin user
 - supported game worlds
@@ -145,12 +145,9 @@ Example backend `.env`:
 
 ```env
 PORT=5000
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=modvault_db
+DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@[YOUR-SUPABASE-HOST]:5432/postgres
 JWT_SECRET=change_this_to_a_long_secret_key
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:5174
 ```
 
 Backend URL:
