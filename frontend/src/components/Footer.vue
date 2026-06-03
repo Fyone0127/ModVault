@@ -10,7 +10,7 @@
     <section class="footer-frame">
       <div class="footer-topbar">
         <RouterLink class="footer-brand-mark" to="/" aria-label="Go to ModVault home">
-          <img src="/favicon.png" alt="" />
+          <img src="/pochacco-pochacco-dance-transparent.gif" alt="" />
         </RouterLink>
 
         <div class="footer-newsletter">

@@ -3,7 +3,7 @@
     <div class="nav-inner">
       <RouterLink class="logo nav-logo-icon" to="/" aria-label="Go to ModVault home" @click="closeMenu">
         <span class="logo-mark" aria-hidden="true">
-          <img src="/favicon.png" alt="" />
+          <img src="/pochacco-pochacco-dance-transparent.gif" alt="" />
         </span>
       </RouterLink>
 

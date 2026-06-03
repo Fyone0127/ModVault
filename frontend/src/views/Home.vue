@@ -57,7 +57,9 @@
           <strong>ModVault</strong>
           <span></span>
           <span></span>
-          <em></em>
+          <em>
+            <img src="/sanrio-sanrio-characters-transparent.gif" alt="" />
+          </em>
         </div>
       </div>
 
@@ -333,8 +335,8 @@ const giftCopyStyle = computed(() => ({
 
 const giftSitePreviewStyle = computed(() => {
   const progress = giftScrollProgress.value
-  const portal = smoothStep((progress - 0.34) / 0.34)
-  const fade = 1 - smoothStep((progress - 0.86) / 0.14)
+  const portal = smoothStep((progress - 0.3) / 0.28)
+  const fade = 1 - smoothStep((progress - 0.95) / 0.05)
   const glow = smoothStep((progress - 0.28) / 0.42)
 
   return {
@@ -357,7 +359,7 @@ const siteRevealStyle = computed(() => {
 const giftLightStyle = computed(() => {
   const progress = giftScrollProgress.value
   const bloom = smoothStep((progress - 0.22) / 0.5)
-  const fade = 1 - smoothStep((progress - 0.8) / 0.2)
+  const fade = 1 - smoothStep((progress - 0.9) / 0.1)
   const amount = bloom * fade
 
   return {
@@ -380,11 +382,11 @@ const giftRevealStyle = computed(() => ({
 
 const giftStageStyle = computed(() => {
   const progress = giftScrollProgress.value
-  const fade = smoothStep((progress - 0.82) / 0.18)
+  const fade = smoothStep((progress - 0.94) / 0.06)
 
   return {
     opacity: String(1 - fade),
-    visibility: progress > 0.985 ? 'hidden' : 'visible'
+    visibility: progress > 0.998 ? 'hidden' : 'visible'
   }
 })
 
@@ -441,7 +443,7 @@ function gameFanStyle(index, total) {
   return {
     '--fan-x': `${offset * 88}px`,
     '--fan-y': `${distance * 22}px`,
-    '--fan-x-wide': `${offset * 136}px`,
+    '--fan-x-wide': `${offset * 260}px`,
     '--fan-y-wide': `${distance * 34}px`,
     '--fan-tilt': `${offset * 7.5}deg`,
     '--fan-tilt-wide': `${offset * 11}deg`,

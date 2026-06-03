@@ -1,5 +1,5 @@
 <template>
-  <div class="vaultbot">
+  <div ref="vaultbotEl" class="vaultbot">
     <button
       class="vaultbot-fab"
       :class="{ active: open }"
@@ -9,7 +9,8 @@
       @click="open = !open"
     >
       <span class="vaultbot-fab-icon">
-        <Bot :size="23" />
+        <Sparkles v-if="!open" :size="22" />
+        <Bot v-else :size="23" />
       </span>
       <span>{{ open ? 'Close' : 'Ask' }}</span>
     </button>
@@ -30,14 +31,12 @@
           </div>
         </div>
 
-        <button class="btn-icon" type="button" aria-label="Close chatbot" @click="open = false">
-          <X :size="18" />
-        </button>
       </header>
 
       <div class="vaultbot-context-strip" aria-label="VaultBot catalogue context">
         <span>{{ catalogSummary }}</span>
         <span>{{ roleSummary }}</span>
+        <span>{{ categorySummary }}</span>
       </div>
 
       <div ref="messagesEl" class="vaultbot-messages">
@@ -96,9 +95,10 @@
           class="input"
           type="text"
           placeholder="Ask about mods, roles, upload, approvals, or games..."
+          :disabled="typing"
         />
 
-        <button class="btn-icon" type="submit" aria-label="Send message">
+        <button class="btn-icon" type="submit" aria-label="Send message" :disabled="typing || !draft.trim()">
           <Send :size="18" />
         </button>
       </form>
@@ -108,7 +108,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { Bot, Send, X } from 'lucide-vue-next'
+import { Bot, Send, Sparkles } from 'lucide-vue-next'
 import api, { getCurrentUser } from '../services/api'
 
 const open = ref(false)
@@ -116,19 +116,21 @@ const draft = ref('')
 const mods = ref([])
 const games = ref([])
 const messagesEl = ref(null)
+const vaultbotEl = ref(null)
 const user = ref(getCurrentUser())
 const typing = ref(false)
+let replyTimer
 
 const messages = ref([
   {
     id: 1,
     from: 'bot',
-    text: 'Hi, I am VaultBot. I can help with browsing, uploads, approvals, creator access, and picking mods from the live ModVault catalogue.',
+    text: 'Hi, I am VaultBot. Ask me for mod picks, upload help, creator access, favourites, reviews, account help, or where to go next.',
     links: [
       { label: 'Browse Mods', to: '/mods' },
       { label: 'Game Worlds', to: '/games' }
     ],
-    prompts: ['Recommend Minecraft mods', 'How to upload?', 'What can admin do?']
+    prompts: ['Recommend Minecraft mods', 'How to upload?', 'Find popular mods']
   }
 ])
 
@@ -147,12 +149,21 @@ const roleSummary = computed(() => {
   return `${user.value.role || 'User'} mode`
 })
 
+const categorySummary = computed(() => {
+  const categories = [...new Set(mods.value.map((mod) => mod.category).filter(Boolean))]
+  return categories.length ? `${categories.length} categories indexed` : 'Categories syncing'
+})
+
 const quickPrompts = computed(() => {
-  if (user.value?.role === 'creator') {
-    return ['How to upload?', 'Why is my mod pending?', 'Check my mods']
+  if (user.value?.role === 'admin') {
+    return ['Pending approvals', 'Creator requests', 'Add a game']
   }
 
-  return ['Recommend Minecraft mods', 'How to save favourites?', 'How to become creator?']
+  if (user.value?.role === 'creator') {
+    return ['How to upload?', 'Why is my mod pending?', 'Improve my upload']
+  }
+
+  return ['Recommend Minecraft mods', 'Find popular mods', 'How to become creator?']
 })
 
 function normalize(text) {
@@ -266,10 +277,30 @@ function topMod() {
   return mods.value[0]
 }
 
+function readableReplyDelay(answerText) {
+  const words = answerText.split(/\s+/).filter(Boolean).length
+  return Math.min(1200, Math.max(520, words * 28))
+}
+
+function topCategories(limit = 4) {
+  const counts = new Map()
+
+  for (const mod of mods.value) {
+    if (!mod.category) continue
+    counts.set(mod.category, (counts.get(mod.category) || 0) + 1)
+  }
+
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+}
+
 function describeMatches(matches, fallback = 'Here are a few catalogue picks') {
   if (!matches.length) return fallback
 
-  const names = matches.map((mod) => `"${mod.title}"`).join(', ')
+  const names = matches
+    .map((mod) => `"${mod.title}"${mod.category ? ` (${mod.category})` : ''}`)
+    .join(', ')
   const gameNames = [...new Set(matches.map((mod) => mod.game_name).filter(Boolean))].join(', ')
 
   return `${names} ${matches.length === 1 ? 'is' : 'are'} worth checking${gameNames ? ` for ${gameNames}` : ''}.`
@@ -285,6 +316,7 @@ function browseLink(query) {
 
 function roleHomeLink(role) {
   if (role === 'creator') return { label: 'My Mods', to: '/my-mods' }
+  if (role === 'admin') return { label: 'Admin Dashboard', to: '/dashboard' }
   if (role === 'user') return { label: 'Dashboard', to: '/dashboard' }
   return { label: 'Login', to: '/login' }
 }
@@ -303,6 +335,22 @@ function answerFor(input) {
       'I can help with browsing mods, games, uploads, creator access, favourites, reviews, password reset, and recommendations from the live ModVault catalogue.',
       [{ label: 'Browse Mods', to: '/mods' }, roleHomeLink(role)],
       ['Recommend Minecraft mods', 'How to upload?', 'How to reset password?']
+    )
+  }
+
+  if (hasAny(q, ['download', 'install', 'link', 'mod file'])) {
+    const matches = matchingMods(q, 2)
+    const match = matches[0]
+
+    return buildAnswer(
+      match
+        ? `Open "${match.title}" and use its download link from the detail page. Always check the description, category, rating, and source before installing.`
+        : 'Open a mod detail page to review its description, rating, source, and download link before installing.',
+      [
+        match ? { label: 'Open Mod Detail', to: `/mods/${match.id}` } : { label: 'Browse Mods', to: '/mods' },
+        { label: 'Browse Mods', to: '/mods' }
+      ],
+      ['Recommend safe picks', 'Find popular mods']
     )
   }
 
@@ -384,6 +432,18 @@ function answerFor(input) {
   }
 
   if (hasAny(q, ['admin', 'moderator', 'creator request'])) {
+    if (role === 'admin') {
+      return buildAnswer(
+        'Admin tools let you review pending mods, approve or reject creator requests, manage game collections, and keep the catalogue clean.',
+        [
+          { label: 'Pending Mods', to: '/admin/approvals' },
+          { label: 'Creator Requests', to: '/admin/creator-requests' },
+          { label: 'Add Game', to: '/admin/games/new' }
+        ],
+        ['Pending approvals', 'Add a game']
+      )
+    }
+
     return buildAnswer(
       'Some catalogue actions are admin-only. As a user or creator, the main flows here are browsing, saving, reviewing, uploading, and tracking creator submissions.',
       [
@@ -447,8 +507,12 @@ function answerFor(input) {
   }
 
   if (hasAny(q, ['search', 'filter', 'sort', 'category', 'categories', 'browse'])) {
+    const categories = topCategories()
+
     return buildAnswer(
-      'Use the Mods page to search by keyword, filter by game or category, and sort by latest, source downloads, rating, or title.',
+      categories.length
+        ? `Use the Mods page to search, filter by game or category, and sort by latest, downloads, rating, or title. Busy categories right now include ${categories.map(([name, count]) => `${name} (${count})`).join(', ')}.`
+        : 'Use the Mods page to search by keyword, filter by game or category, and sort by latest, source downloads, rating, or title.',
       [
         browseLink(q),
         { label: 'Games', to: '/games' }
@@ -477,7 +541,7 @@ function answerFor(input) {
 
     if (match) {
       return buildAnswer(
-        `${describeMatches(matches.length ? matches : [match])} Use the Mods page if you want to narrow this by game, category, or sort order.`,
+        `${describeMatches(matches.length ? matches : [match])} I ranked these using matching keywords, game/category fit, ratings, and download count. Use the Mods page if you want to narrow it further.`,
         [
           { label: 'Open Top Pick', to: `/mods/${match.id}` },
           browseLink(q)
@@ -499,6 +563,7 @@ function answerFor(input) {
 }
 
 function sendQuick(prompt) {
+  if (typing.value) return
   draft.value = prompt
   sendMessage()
 }
@@ -512,10 +577,11 @@ function sendMessage() {
   typing.value = true
 
   const answer = answerFor(text)
-  window.setTimeout(() => {
+  window.clearTimeout(replyTimer)
+  replyTimer = window.setTimeout(() => {
     typing.value = false
     addMessage('bot', answer.text, answer.links, answer.prompts)
-  }, 220)
+  }, readableReplyDelay(answer.text))
 }
 
 async function loadContext() {
@@ -536,12 +602,22 @@ function syncSession() {
   user.value = getCurrentUser()
 }
 
+function handleOutsidePointer(event) {
+  if (!open.value || !vaultbotEl.value) return
+  if (!vaultbotEl.value.contains(event.target)) {
+    open.value = false
+  }
+}
+
 onMounted(() => {
   loadContext()
+  document.addEventListener('pointerdown', handleOutsidePointer)
   window.addEventListener('session-changed', syncSession)
 })
 
 onBeforeUnmount(() => {
+  window.clearTimeout(replyTimer)
+  document.removeEventListener('pointerdown', handleOutsidePointer)
   window.removeEventListener('session-changed', syncSession)
 })
 </script>
