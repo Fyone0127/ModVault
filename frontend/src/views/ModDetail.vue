@@ -47,7 +47,7 @@
 
           <button
             class="btn-secondary"
-            @click="saveFavourite"
+            @click="saveFavourite()"
           >
             <Heart :size="18" />
             Save Favourite
