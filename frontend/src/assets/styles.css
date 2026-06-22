@@ -7223,9 +7223,11 @@ img { max-width: 100%; display: block; }
 .home-game-social {
   width: min(1640px, 100%);
   max-width: none;
+  margin-right: auto;
+  margin-left: auto;
   margin-top: 0;
   margin-bottom: 6rem;
-  padding: 1rem 0 3rem;
+  padding: 1rem clamp(1rem, 3vw, 3rem) 3rem;
 }
 
 .home-game-social-stats {
@@ -7283,7 +7285,9 @@ img { max-width: 100%; display: block; }
 
 .home-game-fan {
   position: relative;
+  width: min(100%, 1500px);
   height: 520px;
+  margin: 0 auto;
   display: flex;
   align-items: end;
   justify-content: center;
@@ -7376,7 +7380,7 @@ img { max-width: 100%; display: block; }
     translateX(var(--fan-x-wide))
     translateY(calc(var(--fan-y-wide) - 34px))
     rotate(var(--fan-tilt-wide))
-    scale(calc(var(--fan-scale) + 0.12));
+    scale(calc(var(--fan-scale) + 0.085));
   z-index: 80;
 }
 

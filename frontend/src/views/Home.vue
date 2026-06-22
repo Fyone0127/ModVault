@@ -439,14 +439,18 @@ function gameFanStyle(index, total) {
   const center = (total - 1) / 2
   const offset = index - center
   const distance = Math.abs(offset)
+  const compactFan = total >= 7
+  const restingStep = compactFan ? 74 : 88
+  const spreadStep = compactFan ? 206 : 240
+  const spreadTilt = compactFan ? 8.5 : 10
 
   return {
-    '--fan-x': `${offset * 88}px`,
+    '--fan-x': `${offset * restingStep}px`,
     '--fan-y': `${distance * 22}px`,
-    '--fan-x-wide': `${offset * 260}px`,
+    '--fan-x-wide': `${offset * spreadStep}px`,
     '--fan-y-wide': `${distance * 34}px`,
     '--fan-tilt': `${offset * 7.5}deg`,
-    '--fan-tilt-wide': `${offset * 11}deg`,
+    '--fan-tilt-wide': `${offset * spreadTilt}deg`,
     '--fan-scale': String(1.04 - Math.min(distance * 0.055, 0.22)),
     '--fan-z': String(20 - Math.round(distance * 2))
   }
