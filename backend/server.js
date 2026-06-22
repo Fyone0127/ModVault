@@ -14,6 +14,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js'
 import downloadRoutes from './routes/downloadRoutes.js'
 import recommendationRoutes from './routes/recommendationRoutes.js'
 import externalRoutes from './routes/externalRoutes.js'
+import aiRoutes from './routes/aiRoutes.js'
 
 dotenv.config()
 const app = express()
@@ -53,6 +54,7 @@ app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/downloads', downloadRoutes)
 app.use('/api/recommendations', recommendationRoutes)
 app.use('/api/external', externalRoutes)
+app.use('/api/ai', aiRoutes)
 
 app.use((err, req, res, next) => {
   console.error(err)

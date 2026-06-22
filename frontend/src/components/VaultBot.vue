@@ -568,7 +568,23 @@ function sendQuick(prompt) {
   sendMessage()
 }
 
-function sendMessage() {
+async function requestAiAnswer(text) {
+  const contextMods = mods.value.slice(0, 14)
+  const contextGames = games.value.slice(0, 10)
+
+  const response = await api.post('/ai/chat', {
+    message: text,
+    context: {
+      user: user.value,
+      mods: contextMods,
+      games: contextGames
+    }
+  })
+
+  return response.data?.text
+}
+
+async function sendMessage() {
   const text = draft.value.trim()
   if (!text) return
 
@@ -576,7 +592,21 @@ function sendMessage() {
   draft.value = ''
   typing.value = true
 
-  const answer = answerFor(text)
+  const fallbackAnswer = answerFor(text)
+  let answer = fallbackAnswer
+
+  try {
+    const aiText = await requestAiAnswer(text)
+    if (aiText) {
+      answer = {
+        ...fallbackAnswer,
+        text: aiText
+      }
+    }
+  } catch (error) {
+    console.warn('VaultBot AI fallback used:', error)
+  }
+
   window.clearTimeout(replyTimer)
   replyTimer = window.setTimeout(() => {
     typing.value = false
